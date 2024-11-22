@@ -75,6 +75,13 @@ Index of this file:
 #include <stddef.h>                 // ptrdiff_t, NULL
 #include <string.h>                 // memset, memmove, memcpy, strlen, strchr, strcpy, strcmp
 
+#ifdef IMGUI_USE_FONTKIT
+#ifndef FK_USE_IMGUI_ALLOCATOR
+#define FK_USE_IMGUI_ALLOCATOR
+#endif
+#include <fk.h>
+#endif
+
 // Define attributes of all API symbols declarations (e.g. for DLL under Windows)
 // IMGUI_API is used for core imgui functions, IMGUI_IMPL_API is used for the default backends files (imgui_impl_xxx.h)
 // Using dear imgui via a shared library is not recommended: we don't guarantee backward nor forward ABI compatibility + this is a call-heavy library and function call overhead adds up.
@@ -3307,9 +3314,10 @@ struct FontKitData {
     int         TextureWidth;  // Width of the FontKit texture
     int         TextureHeight; // Height of the FontKit texture
     ImTextureID TextureID;     // A texture for FontKit to use
+    fk::AtlasPacker *AtlasPacker;
 
-    void Init() { TextureWidth = 256; TextureHeight = 256; }
-    void Clear() {}
+    void Init() { TextureWidth = 256; TextureHeight = 256; AtlasPacker = IM_NEW(fk::AtlasPacker); }
+    void Clear() { IM_DELETE(AtlasPacker); }    
     void TextureCreated() {};
 };
 #endif
