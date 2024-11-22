@@ -665,6 +665,23 @@ void    ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
     (void)bd; // Not all compilation paths use this
 }
 
+#ifdef IMGUI_USE_FONTKIT
+void ImGui_ImplOpenGL3_UpdateFontTexture(int x, int y, int width, int height, unsigned int const* src, int src_stride)
+{
+    ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
+
+    GLint last_texture;
+    GL_CALL(glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, bd->FontTexture));
+
+    GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, src_stride));
+    GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, src));
+    GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
+
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, last_texture));
+}
+#endif
+
 bool ImGui_ImplOpenGL3_CreateFontsTexture()
 {
     ImGuiIO& io = ImGui::GetIO();

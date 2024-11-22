@@ -41,6 +41,14 @@ IMGUI_IMPL_API void     ImGui_ImplOpenGL3_DestroyFontsTexture();
 IMGUI_IMPL_API bool     ImGui_ImplOpenGL3_CreateDeviceObjects();
 IMGUI_IMPL_API void     ImGui_ImplOpenGL3_DestroyDeviceObjects();
 
+#ifdef IMGUI_USE_FONTKIT
+// FontKit needs to update the font texture as the atlas grows.
+// - x, y, width, height are the dimensions of the region to update.
+// - src is the RGBA32 source data.
+// - src_stride is the number of pixels between rows in the source data.
+IMGUI_IMPL_API void     ImGui_ImplOpenGL3_UpdateFontTexture(int x, int y, int width, int height, unsigned int const* src, int src_stride);
+#endif
+
 // Configuration flags to add in your imconfig file:
 //#define IMGUI_IMPL_OPENGL_ES2     // Enable ES 2 (Auto-detected on Emscripten)
 //#define IMGUI_IMPL_OPENGL_ES3     // Enable ES 3 (Auto-detected on iOS/Android)
