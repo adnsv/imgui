@@ -42,11 +42,16 @@ IMGUI_IMPL_API bool     ImGui_ImplOpenGL3_CreateDeviceObjects();
 IMGUI_IMPL_API void     ImGui_ImplOpenGL3_DestroyDeviceObjects();
 
 #ifdef IMGUI_USE_FONTKIT
+// To avoid heavy modifications, we use a separate texture for FontKit.
+// This texture is not initialized to a static atlas content, it will be updated as needed once new glyphs are needed.
+IMGUI_IMPL_API bool     ImGui_ImplOpenGL3_CreateFontKitTexture();
+IMGUI_IMPL_API void     ImGui_ImplOpenGL3_DestroyFontKitTexture();
+IMGUI_IMPL_API bool     ImGui_ImplOpenGL3_IsFontKitTextureAllocated();
+
 // FontKit needs to update the font texture as the atlas grows.
 // - x, y, width, height are the dimensions of the region to update.
-// - src is the RGBA32 source data.
-// - src_stride is the number of pixels between rows in the source data.
-IMGUI_IMPL_API void     ImGui_ImplOpenGL3_UpdateFontTexture(int x, int y, int width, int height, unsigned int const* src, int src_stride);
+// - src is the RGBA32 source data, assuming row-major order.
+IMGUI_IMPL_API void     ImGui_ImplOpenGL3_UpdateFontKitTexture(int x, int y, int width, int height, unsigned int const* src);
 #endif
 
 // Configuration flags to add in your imconfig file:

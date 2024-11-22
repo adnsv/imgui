@@ -241,6 +241,10 @@ struct ImGui_ImplOpenGL3_Data
     bool            HasClipOrigin;
     bool            UseBufferSubData;
 
+#ifdef IMGUI_USE_FONTKIT
+    GLuint          FontKitTexture;
+#endif
+
     ImGui_ImplOpenGL3_Data() { memset((void*)this, 0, sizeof(*this)); }
 };
 
@@ -665,23 +669,6 @@ void    ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
     (void)bd; // Not all compilation paths use this
 }
 
-#ifdef IMGUI_USE_FONTKIT
-void ImGui_ImplOpenGL3_UpdateFontTexture(int x, int y, int width, int height, unsigned int const* src, int src_stride)
-{
-    ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
-
-    GLint last_texture;
-    GL_CALL(glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture));
-    GL_CALL(glBindTexture(GL_TEXTURE_2D, bd->FontTexture));
-
-    GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, src_stride));
-    GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, src));
-    GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
-
-    GL_CALL(glBindTexture(GL_TEXTURE_2D, last_texture));
-}
-#endif
-
 bool ImGui_ImplOpenGL3_CreateFontsTexture()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -727,6 +714,80 @@ void ImGui_ImplOpenGL3_DestroyFontsTexture()
         bd->FontTexture = 0;
     }
 }
+
+#ifdef IMGUI_USE_FONTKIT
+
+bool ImGui_ImplOpenGL3_CreateFontKitTexture()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
+
+    int width = io.Fonts->FontKit.TextureWidth;
+    int height = io.Fonts->FontKit.TextureHeight;
+
+    IM_ASSERT(width > 0 && height > 0 && bd->FontKitTexture == 0 && io.Fonts->FontKit.TextureID == 0);
+
+    GLint last_texture;
+    GL_CALL(glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture));
+    GL_CALL(glGenTextures(1, &bd->FontKitTexture));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, bd->FontKitTexture));
+    // While normally, we avoid scaling glyphs, we will allow GL_LINEAR just in case
+    // it scaling is used. This will produce blurry text, but it is less ugly compared
+    // to nearest filtering.
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+#ifdef GL_UNPACK_ROW_LENGTH // Not on WebGL/ES
+    GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
+#endif
+    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
+
+    // Store identifier
+    io.Fonts->FontKit.TextureID = (ImTextureID)(intptr_t)bd->FontKitTexture;
+
+    // Restore state
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, last_texture));
+
+    return true;
+}
+
+void ImGui_ImplOpenGL3_DestroyFontKitTexture()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
+    if (bd->FontKitTexture)
+    {
+        glDeleteTextures(1, &bd->FontKitTexture);
+        io.Fonts->SetTexID(0);
+        bd->FontKitTexture = 0;
+    }
+}
+
+bool ImGui_ImplOpenGL3_IsFontKitTextureAllocated()
+{
+    ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
+    return bd->FontKitTexture != 0;
+}   
+
+void ImGui_ImplOpenGL3_UpdateFontKitTexture(int x, int y, int width, int height, unsigned int const* src)
+{
+    ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
+    IM_ASSERT(bd->FontKitTexture != 0 && x >= 0 && y >= 0 && width > 0 && height > 0 && src != nullptr);
+
+    GLint last_texture;
+    GL_CALL(glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, bd->FontKitTexture));
+
+#ifdef GL_UNPACK_ROW_LENGTH // Not on WebGL/ES
+    GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
+#endif
+    GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, src));
+
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, last_texture));
+}
+
+#endif // IMGUI_USE_FONTKIT
 
 // If you get an error please report on github. You may try different GL context version or GLSL version. See GL<>GLSL version table at the top of this file.
 static bool CheckShader(GLuint handle, const char* desc)
@@ -950,6 +1011,10 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
 
     ImGui_ImplOpenGL3_CreateFontsTexture();
 
+#ifdef IMGUI_USE_FONTKIT
+    ImGui_ImplOpenGL3_CreateFontKitTexture();
+#endif
+
     // Restore modified GL state
     glBindTexture(GL_TEXTURE_2D, last_texture);
     glBindBuffer(GL_ARRAY_BUFFER, last_array_buffer);
@@ -970,6 +1035,10 @@ void    ImGui_ImplOpenGL3_DestroyDeviceObjects()
     if (bd->ElementsHandle) { glDeleteBuffers(1, &bd->ElementsHandle); bd->ElementsHandle = 0; }
     if (bd->ShaderHandle)   { glDeleteProgram(bd->ShaderHandle); bd->ShaderHandle = 0; }
     ImGui_ImplOpenGL3_DestroyFontsTexture();
+
+#ifdef IMGUI_USE_FONTKIT
+    ImGui_ImplOpenGL3_DestroyFontKitTexture();
+#endif
 }
 
 //-----------------------------------------------------------------------------

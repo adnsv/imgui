@@ -3301,6 +3301,19 @@ enum ImFontAtlasFlags_
     ImFontAtlasFlags_NoBakedLines       = 1 << 2,   // Don't build thick line textures into the atlas (save a little texture memory, allow support for point/nearest filtering). The AntiAliasedLinesUseTex features uses them, otherwise they will be rendered using polygons (more expensive for CPU/GPU).
 };
 
+#ifdef IMGUI_USE_FONTKIT
+// FontKit-related data stored in ImFontAtlas
+struct FontKitData {
+    int         TextureWidth;  // Width of the FontKit texture
+    int         TextureHeight; // Height of the FontKit texture
+    ImTextureID TextureID;     // A texture for FontKit to use
+
+    void Init() { TextureWidth = 256; TextureHeight = 256; }
+    void Clear() {}
+    void TextureCreated() {};
+};
+#endif
+
 // Load and rasterize multiple TTF/OTF fonts into a same texture. The font atlas will build a single texture holding:
 //  - One or more fonts.
 //  - Custom graphics data needed to render the shapes needed by Dear ImGui.
@@ -3418,6 +3431,11 @@ struct ImFontAtlas
     // [Obsolete]
     //typedef ImFontAtlasCustomRect    CustomRect;         // OBSOLETED in 1.72+
     //typedef ImFontGlyphRangesBuilder GlyphRangesBuilder; // OBSOLETED in 1.67+
+    
+#ifdef IMGUI_USE_FONTKIT
+    // [FontKit]
+    FontKitData FontKit;
+#endif
 };
 
 // Font runtime data and rendering

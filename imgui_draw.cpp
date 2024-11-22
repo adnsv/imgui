@@ -2439,6 +2439,10 @@ ImFontAtlas::ImFontAtlas()
     memset(this, 0, sizeof(*this));
     TexGlyphPadding = 1;
     PackIdMouseCursors = PackIdLines = -1;
+
+#ifdef IMGUI_USE_FONTKIT
+    FontKit.Init();
+#endif
 }
 
 ImFontAtlas::~ImFontAtlas()
@@ -2495,6 +2499,9 @@ void    ImFontAtlas::Clear()
     ClearInputData();
     ClearTexData();
     ClearFonts();
+#ifdef IMGUI_USE_FONTKIT
+    FontKit.Clear();
+#endif
 }
 
 void    ImFontAtlas::GetTexDataAsAlpha8(unsigned char** out_pixels, int* out_width, int* out_height, int* out_bytes_per_pixel)
